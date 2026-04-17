@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>动效修炼日志</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+:root {
+  --bg:#0c0c10;--surface:#13131a;--surface2:#1a1a24;--surface3:#22222f;
+  --border:#2a2a3a;--border2:#333345;
+  --text:#e8e8f0;--text2:#9090a8;--text3:#55556a;
+  --accent:#c8a96e;--accent2:#e8c97e;--accent-dim:rgba(200,169,110,0.12);
+  --green:#5dbf8a;--green-dim:rgba(93,191,138,0.12);
+  --red:#e06c75;--red-dim:rgba(224,108,117,0.1);
+  --blue:#61afef;--blue-dim:rgba(97,175,239,0.1);
+  --purple:#c678dd;--purple-dim:rgba(198,120,221,0.1);
+  --orange:#fb923c;--yellow:#fbbf24;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{font-family:'Noto Serif SC',serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(200,169,110,0.04) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 90%,rgba(97,175,239,0.03) 0%,transparent 50%);pointer-events:none;z-index:0;}
+
+/* header */
+.header{position:sticky;top:0;z-index:100;background:rgba(12,12,16,0.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:12px;}
+.header-title{font-size:15px;font-weight:700;color:var(--accent);letter-spacing:3px;padding:15px 0;flex:1;}
+.header-date{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);}
+
+/* nav */
+.nav{display:flex;gap:2px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;scrollbar-width:none;position:sticky;top:49px;z-index:99;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{flex-shrink:0;font-family:'Noto Serif SC',serif;font-size:13px;color:var(--text3);padding:11px 14px;background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:1px;white-space:nowrap;}
+.nav-btn:hover{color:var(--text2);}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.main{position:relative;z-index:1;}
+.page{display:none;}
+.page.active{display:block;}
+.container{max-width:860px;margin:0 auto;padding:28px 18px 80px;}
+
+/* streak bar */
+.streak-bar{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:18px;}
+.streak-num{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:600;color:var(--accent);line-height:1;}
+.streak-info strong{display:block;font-size:13px;color:var(--text2);}
+.streak-info span{font-size:12px;color:var(--text3);}
+.streak-right{margin-left:auto;text-align:right;}
+.streak-right .big{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;color:var(--text2);}
+.streak-right .lbl{font-size:11px;color:var(--text3);}
+
+/* leave badge */
+.leave-bar{display:flex;gap:8px;align-items:center;margin-bottom:18px;flex-wrap:wrap;}
+.leave-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;}
+.leave-dot.used{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.leave-dot.avail{background:var(--green-dim);border-color:var(--green);color:var(--green);cursor:pointer;}
+.leave-dot.avail:hover{opacity:.8;}
+.leave-label{font-size:12px;color:var(--text3);}
+
+/* date nav */
+.date-nav{display:flex;align-items:center;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;}
+.date-nav-arrow{flex-shrink:0;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;transition:all .2s;}
+.date-nav-arrow:hover{color:var(--text);background:var(--surface2);}
+.date-nav-arrow:disabled{opacity:.25;cursor:not-allowed;}
+.date-nav-center{flex:1;text-align:center;padding:10px 0;}
+.date-nav-main{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text);font-weight:600;}
+.date-nav-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.date-nav-today-btn{flex-shrink:0;font-size:11px;color:var(--accent);padding:6px 12px;background:none;border:none;border-left:1px solid var(--border);cursor:pointer;height:44px;letter-spacing:1px;white-space:nowrap;transition:opacity .2s;}
+.date-nav-today-btn:hover{opacity:.7;}
+.date-nav-today-btn.hidden{display:none;}
+
+/* preview banner */
+.preview-banner{display:flex;align-items:center;gap:8px;background:rgba(97,175,239,0.08);border:1px solid rgba(97,175,239,0.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--blue);}
+
+/* today hero */
+.today-hero{text-align:center;padding:24px 0 20px;margin-bottom:22px;border-bottom:1px solid var(--border);}
+.today-phase{font-size:11px;letter-spacing:4px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;}
+.today-week-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4;}
+.today-sub{font-size:12px;color:var(--text3);}
+.progress-ring{width:80px;height:80px;margin:16px auto 0;position:relative;}
+.progress-ring svg{transform:rotate(-90deg);}
+.progress-ring .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--accent);}
+
+/* task card */
+.task-section-label{font-size:10px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;margin:18px 0 8px;padding-left:2px;}
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;transition:border-color .2s;}
+.task-card:hover{border-color:var(--border2);}
+.task-card.done{border-color:rgba(93,191,138,.25);background:var(--green-dim);}
+.task-card.done .task-main-text{color:var(--text3);text-decoration:line-through;}
+.task-header{display:flex;align-items:flex-start;gap:12px;padding:13px 15px;cursor:pointer;user-select:none;}
+.task-cb{width:20px;height:20px;flex-shrink:0;margin-top:1px;border:2px solid var(--border2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s;}
+.task-card.done .task-cb{background:var(--green);border-color:var(--green);color:#fff;}
+.task-main-text{flex:1;font-size:14px;color:var(--text2);line-height:1.6;}
+.task-note-toggle{font-size:11px;color:var(--text3);flex-shrink:0;margin-top:3px;padding:2px 6px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;transition:all .2s;}
+.task-note-toggle:hover{color:var(--accent);border-color:var(--accent);}
+.task-note-area{padding:0 15px 12px;display:none;}
+.task-note-area.open{display:block;}
+.task-note-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;font-family:'Noto Serif SC',serif;font-size:13px;color:var(--text2);resize:none;outline:none;min-height:60px;line-height:1.7;transition:border-color .2s;}
+.task-note-input:focus{border-color:var(--accent);}
+.task-note-input::placeholder{color:var(--text3);}
+.task-note-saved{font-size:11px;color:var(--text3);margin-top:4px;padding-left:2px;font-style:italic;}
+
+/* weekend tag */
+.weekend-tag{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--accent-dim);color:var(--accent);flex-shrink:0;margin-top:3px;font-family:'JetBrains Mono',monospace;}
+
+/* daily note */
+.daily-note-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:15px;margin-bottom:16px;}
+.daily-note-label{font-size:10px;letter-spacing:2px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;}
+.daily-note-input{width:100%;background:none;border:none;outline:none;font-family:'Noto Serif SC',serif;font-size:13px;color:var(--text2);resize:none;line-height:1.8;min-height:70px;}
+.daily-note-input::placeholder{color:var(--text3);}
+
+/* checkin btn */
+.checkin-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:15px;font-family:'Noto Serif SC',serif;font-size:15px;font-weight:700;color:#0c0c10;cursor:pointer;letter-spacing:2px;transition:all .2s;}
+.checkin-btn:hover{opacity:.9;transform:translateY(-1px);}
+.checkin-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.checkin-btn.done-btn{background:var(--green-dim);color:var(--green);border:1px solid rgba(93,191,138,.3);}
+.leave-btn{width:100%;background:var(--red-dim);border:1px solid rgba(224,108,117,.3);border-radius:10px;padding:12px;font-family:'Noto Serif SC',serif;font-size:13px;color:var(--red);cursor:pointer;letter-spacing:1px;margin-top:8px;transition:all .2s;}
+.leave-btn:hover{opacity:.8;}
+.leave-btn:disabled{opacity:.3;cursor:not-allowed;}
+
+/* report */
+.report-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.report-top-title .sub{font-size:10px;letter-spacing:3px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;}
+.report-top-title .main{font-size:20px;font-weight:700;}
+.nav-arrows{display:flex;gap:6px;}
+.arr-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;transition:all .2s;}
+.arr-btn:hover{border-color:var(--border2);}
+
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 12px;text-align:center;}
+.stat-num{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:600;margin-bottom:4px;}
+.stat-lbl{font-size:10px;color:var(--text3);letter-spacing:1px;}
+
+.section-title{font-size:10px;letter-spacing:3px;color:var(--text3);text-transform:uppercase;margin-bottom:12px;}
+
+/* week heatmap row */
+.week-hm{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:24px;}
+.whm-cell{border-radius:8px;padding:9px 5px;text-align:center;background:var(--surface2);border:1px solid var(--border);}
+.whm-cell.has-leave{background:var(--red-dim);border-color:rgba(224,108,117,.3);}
+.whm-cell.has-done{background:var(--green-dim);border-color:rgba(93,191,138,.3);}
+.whm-cell.today{border-color:var(--accent) !important;}
+.whm-cell .wday{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.whm-cell .wdate{font-family:'JetBrains Mono',monospace;font-size:12px;}
+.whm-cell .wpct{font-size:10px;color:var(--text3);margin-top:2px;}
+
+/* log rows */
+.log-list{display:flex;flex-direction:column;gap:8px;}
+.log-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.log-row-header{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;cursor:pointer;}
+.log-row-date{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);width:44px;flex-shrink:0;margin-top:2px;}
+.log-row-title{flex:1;font-size:13px;color:var(--text2);}
+.log-row-pct{font-family:'JetBrains Mono',monospace;font-size:12px;flex-shrink:0;}
+.log-row-body{display:none;padding:0 14px 14px;}
+.log-row.open .log-row-body{display:block;}
+.log-note-block{margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:7px;border-left:2px solid var(--border2);}
+.log-note-block .ntask{font-size:12px;color:var(--text3);margin-bottom:3px;font-weight:600;}
+.log-note-block .nnote{font-size:12px;color:var(--text2);font-style:italic;line-height:1.7;}
+.log-daily-note{margin-top:10px;padding:10px 12px;background:var(--accent-dim);border-radius:7px;border-left:2px solid var(--accent);}
+.log-daily-note .nlbl{font-size:10px;color:var(--accent);letter-spacing:1px;margin-bottom:3px;}
+.log-daily-note .ntext{font-size:12px;color:var(--text2);line-height:1.7;font-style:italic;}
+
+/* month calendar */
+.month-cal-wrap{margin-bottom:24px;}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}
+.cal-wd{text-align:center;font-size:10px;color:var(--text3);padding:3px 0;letter-spacing:1px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-cell{aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;font-family:'JetBrains Mono',monospace;background:var(--surface2);border:1px solid var(--border);transition:all .15s;cursor:default;position:relative;}
+.cal-cell.empty{background:transparent;border-color:transparent;}
+.cal-cell.future{opacity:.3;}
+.cal-cell.today{border-color:var(--accent);color:var(--accent);}
+.cal-cell.done-full{background:rgba(93,191,138,.35);border-color:rgba(93,191,138,.5);color:var(--green);}
+.cal-cell.done-half{background:rgba(93,191,138,.15);border-color:rgba(93,191,138,.25);color:var(--text2);}
+.cal-cell.done-low{background:rgba(93,191,138,.06);border-color:rgba(93,191,138,.12);}
+.cal-cell.is-leave{background:var(--red-dim);border-color:rgba(224,108,117,.3);color:var(--red);}
+.cal-cell .cal-dot{width:4px;height:4px;border-radius:50%;background:currentColor;margin-top:2px;}
+.cal-cell .cal-pct{font-size:9px;color:var(--text3);margin-top:1px;}
+
+/* month grade */
+.grade-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;gap:20px;align-items:center;margin-bottom:16px;}
+.grade-letter{font-size:56px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1;}
+.grade-info .gi-main{font-size:14px;color:var(--text2);margin-bottom:6px;line-height:1.7;}
+.grade-info .gi-sub{font-size:12px;color:var(--text3);}
+
+/* month notes summary */
+.notes-summary{display:flex;flex-direction:column;gap:6px;}
+.note-summary-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.nsrow-header{display:flex;gap:10px;align-items:center;padding:11px 14px;cursor:pointer;}
+.nsrow-date{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);width:44px;flex-shrink:0;}
+.nsrow-preview{flex:1;font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nsrow-body{display:none;padding:0 14px 12px;}
+.nsrow-row.open .nsrow-body{display:block;}
+
+/* curriculum */
+.curr-phase{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px;}
+.curr-phase-hdr{display:flex;align-items:center;gap:12px;padding:15px 18px;cursor:pointer;}
+.curr-phase-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.curr-phase-title{flex:1;font-size:14px;font-weight:600;}
+.curr-phase-pct{font-family:'JetBrains Mono',monospace;font-size:12px;}
+.curr-bar{height:3px;background:var(--border);margin:0 18px;}
+.curr-bar-fill{height:100%;border-radius:2px;transition:width .4s ease;}
+.curr-weeks{display:none;padding:10px 18px 16px;}
+.curr-phase.open .curr-weeks{display:block;}
+.curr-wrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.curr-wrow:last-child{border-bottom:none;}
+.curr-wnum{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);width:28px;flex-shrink:0;}
+
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface3);border:1px solid var(--border2);border-radius:10px;padding:11px 22px;font-size:13px;color:var(--text);opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px;max-width:340px;width:100%;}
+.modal h3{font-size:16px;margin-bottom:10px;color:var(--text);}
+.modal p{font-size:13px;color:var(--text3);line-height:1.7;margin-bottom:20px;}
+.modal-btns{display:flex;gap:8px;}
+.modal-btn{flex:1;padding:11px;border-radius:8px;border:none;cursor:pointer;font-family:'Noto Serif SC',serif;font-size:13px;font-weight:600;transition:all .2s;}
+.modal-btn.confirm{background:var(--red);color:#fff;}
+.modal-btn.cancel{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}
+
+@media(max-width:600px){
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .today-week-title{font-size:17px;}
+  .grade-card{flex-direction:column;text-align:center;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">动效修炼日志</div>
+  <div class="header-date" id="headerDate"></div>
+</div>
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('today',this)">今日打卡</button>
+  <button class="nav-btn" onclick="showPage('weekly',this)">周报</button>
+  <button class="nav-btn" onclick="showPage('monthly',this)">月报</button>
+  <button class="nav-btn" onclick="showPage('curriculum',this)">课程进度</button>
+</div>
+
+<div class="main">
+
+<!-- ══ 今日打卡 ══ -->
+<div id="page-today" class="page active">
+<div class="container">
+
+  <!-- 日期导航 -->
+  <div class="date-nav">
+    <button class="date-nav-arrow" id="dateNavPrev" onclick="shiftViewDate(-1)">&#8249;</button>
+    <div class="date-nav-center">
+      <div class="date-nav-main" id="dateNavMain"></div>
+      <div class="date-nav-sub" id="dateNavSub"></div>
+    </div>
+    <button class="date-nav-today-btn hidden" id="dateNavTodayBtn" onclick="jumpToToday()">回到今天</button>
+    <button class="date-nav-arrow" id="dateNavNext" onclick="shiftViewDate(1)">&#8250;</button>
+  </div>
+
+  <!-- 预览提示 -->
+  <div class="preview-banner" id="previewBanner" style="display:none">
+    &#128065; 预览模式 &middot; 未来日期任务只读，不可打卡
+  </div>
+
+  <div class="today-hero">
+    <div class="today-phase" id="todayPhase"></div>
+    <div class="today-week-title" id="todayWeekTitle">加载中...</div>
+    <div class="today-sub" id="todaySub"></div>
+    <div class="progress-ring">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="33" fill="none" stroke="#1a1a24" stroke-width="6"/>
+        <circle id="progressCircle" cx="40" cy="40" r="33" fill="none" stroke="#c8a96e" stroke-width="6" stroke-linecap="round" stroke-dasharray="207.35" stroke-dashoffset="207.35" style="transition:stroke-dashoffset .4s ease"/>
+      </svg>
+      <div class="pct" id="progressPct">0%</div>
+    </div>
+  </div>
+
+  <div class="streak-bar">
+    <div>
+      <div class="streak-num" id="streakNum">0</div>
+    </div>
+    <div class="streak-info">
+      <strong>连续打卡</strong>
+      <span id="streakSub">今天还没打卡</span>
+    </div>
+    <div class="streak-right">
+      <div class="big" id="totalDays">0</div>
+      <div class="lbl">累计天数</div>
+    </div>
+  </div>
+
+  <div class="leave-bar" id="leaveBar"></div>
+
+  <div id="taskList"></div>
+
+  <div class="daily-note-wrap">
+    <div class="daily-note-label">今日总体备注</div>
+    <textarea class="daily-note-input" id="dailyNoteInput" placeholder="今天整体感受、遇到的问题、突破的难点..."></textarea>
+  </div>
+
+  <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">完成今日打卡</button>
+  <button class="leave-btn" id="leaveBtn" onclick="openLeaveModal()">🏖 使用今日请假（本月剩余 <span id="leaveRemain">3</span> 次）</button>
+</div>
+</div>
+
+<!-- ══ 周报 ══ -->
+<div id="page-weekly" class="page">
+<div class="container">
+  <div class="report-top">
+    <div class="report-top-title">
+      <div class="sub">WEEKLY REPORT</div>
+      <div class="main" id="weekLabel">本周</div>
+    </div>
+    <div class="nav-arrows">
+      <button class="arr-btn" onclick="changeWeek(-1)">← 上周</button>
+      <button class="arr-btn" onclick="changeWeek(1)">下周 →</button>
+    </div>
+  </div>
+  <div class="stat-grid" id="weekStats"></div>
+  <div class="section-title">每日完成情况</div>
+  <div class="week-hm" id="weekHm"></div>
+  <div class="section-title">打卡记录 & 备注</div>
+  <div class="log-list" id="weekLog"></div>
+</div>
+</div>
+
+<!-- ══ 月报 ══ -->
+<div id="page-monthly" class="page">
+<div class="container">
+  <div class="report-top">
+    <div class="report-top-title">
+      <div class="sub">MONTHLY REPORT</div>
+      <div class="main" id="monthLabel">本月</div>
+    </div>
+    <div class="nav-arrows">
+      <button class="arr-btn" onclick="changeMonth(-1)">← 上月</button>
+      <button class="arr-btn" onclick="changeMonth(1)">下月 →</button>
+    </div>
+  </div>
+  <div class="stat-grid" id="monthStats"></div>
+  <div class="section-title">月度热力图</div>
+  <div class="month-cal-wrap">
+    <div class="cal-weekdays">
+      <div class="cal-wd">日</div><div class="cal-wd">一</div><div class="cal-wd">二</div>
+      <div class="cal-wd">三</div><div class="cal-wd">四</div><div class="cal-wd">五</div><div class="cal-wd">六</div>
+    </div>
+    <div class="cal-grid" id="monthCal"></div>
+  </div>
+  <div id="monthGrade"></div>
+  <div class="section-title" style="margin-top:24px">本月备注汇总</div>
+  <div id="monthNotes"></div>
+</div>
+</div>
+
+<!-- ══ 课程进度 ══ -->
+<div id="page-curriculum" class="page">
+<div class="container">
+  <div style="margin-bottom:22px">
+    <div style="font-size:10px;letter-spacing:3px;color:var(--text3);margin-bottom:4px;text-transform:uppercase">CURRICULUM</div>
+    <div style="font-size:20px;font-weight:700">全年课程进度</div>
+  </div>
+  <div id="curriculumList"></div>
+</div>
+</div>
+
+</div><!-- end main -->
+
+<!-- 请假确认弹窗 -->
+<div class="modal-bg" id="leaveModal">
+  <div class="modal">
+    <h3>🏖 使用请假</h3>
+    <p>今天将标记为「请假」，不会中断连续打卡。本月剩余请假次数将减少1次。</p>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeLeaveModal()">取消</button>
+      <button class="modal-btn confirm" onclick="doLeave()">确认请假</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// 课程数据（48周全部内容）
+// ══════════════════════════════════════════════════════════
+const CURRICULUM = [
+  { id:'p1', title:'稳住基础 · 启动三条线', months:'第1-2月', color:'#fb923c',
+    weeks:[
+      { id:'w1', title:'适应新公司，整理现有资产',
+        tasks:['适应新公司流程，了解项目技术栈和团队动效规范','整理现有Unity作品，筛选3-5个可进作品集的素材','安装Unreal Engine，熟悉编辑器基本界面','制定健身饮食计划（制定好，不需要今天开始）'],
+        weekendBonus:['浏览原神/星穹铁道UI动效，截图收集参考','整理现有作品集文件夹，归档资源']
+      },
+      { id:'w2', title:'Unreal环境 + UMG控件基础',
+        tasks:['理解UMG与Unity UGUI对应关系：Canvas≈WidgetBlueprint','学习基础控件：Button、Image、TextBlock、CanvasPanel','理解锚点系统（Anchor），复现一个简单UI布局','健身第一周启动：每天30分钟有氧+基础力量'],
+        weekendBonus:['做一个UMG布局练习（参考游戏背包界面）','记录Unity和UMG操作差异对照笔记']
+      },
+      { id:'w3', title:'UMG动画系统入门',
+        tasks:['学习WidgetAnimation面板，理解轨道和关键帧操作','掌握常用动画属性：位移、缩放、透明度、颜色','对标Unity Animation找到操作逻辑相似点','做一个简单的按钮悬停动效'],
+        weekendBonus:['复现一个你喜欢的游戏弹窗入场动效（AE预演版）','整理本周学习笔记，写下3个困惑点']
+      },
+      { id:'w4', title:'缓动曲线 + 第一个完整动效',
+        tasks:['学习UMG曲线编辑器，理解EaseIn/EaseOut/Custom曲线','复现一个你在Unity里做过的入场动效','对比两个引擎的实现方式，写下差异笔记','月底交付：录制UMG弹窗动效录屏存档'],
+        weekendBonus:['尝试在UMG里做弹性缓动（Bounce效果）','研究两款米哈游游戏各3个UI组件的动效曲线']
+      },
+      { id:'w5', title:'UMG动效序列 + 多元素联动',
+        tasks:['学习多控件同时做动画，理解错帧时序（Stagger）','做列表元素依次出现动效（3-5个元素错帧入场）','学习PlayAnimation蓝图节点，了解蓝图触发动效'],
+        weekendBonus:['做一个带10个元素的列表入场动效，体验错帧节奏','健身打卡复盘：第5周完成率统计']
+      },
+      { id:'w6', title:'蓝图基础触发逻辑',
+        tasks:['学习蓝图基础节点：Event、Sequence、Delay、Branch','实现点击按钮触发动效、动效结束后回调的完整流程','理解蓝图对设计师是工具不是目标'],
+        weekendBonus:['做一个Tab切换动效（3个Tab，切换时内容滑动）','整理蓝图常用节点速查表']
+      },
+      { id:'w7', title:'页面转场动效实战',
+        tasks:['做完整页面切换动效（淡出A页面→淡入B页面）','加入位移和缩放让转场更有层次感','梳理UMG与Unity Animation核心差异整理成笔记'],
+        weekendBonus:['做3种不同风格的页面转场并录屏对比','研究叠纸游戏UI转场方式，截图分析']
+      },
+      { id:'w8', title:'综合练习 + 阶段复盘',
+        tasks:['用UMG完整做出：弹窗入场+按钮反馈+页面转场的小Demo','录屏整理作为第一份Unreal学习成果','减重6-8斤阶段验收，评估是否报私教'],
+        weekendBonus:['打磨第一个Demo的细节，对照原神UI找差距','写第一份月度学习总结（500字以上）']
+      },
+    ]
+  },
+  { id:'p2', title:'Unreal深入 + Spine入门', months:'第3-4月', color:'#38bdf8',
+    weeks:[
+      { id:'w9', title:'UMG材质UI · 发光与特效基础',
+        tasks:['在UMG的Image控件上应用材质（Material）','做简单发光边框效果（用材质实现不是纯贴图）','理解MaterialParameterCollection动态控制材质参数'],
+        weekendBonus:['用材质做一个UI扫光效果','研究原神技能界面的光效实现思路']
+      },
+      { id:'w10', title:'蓝图事件绑定 · 动态UI逻辑',
+        tasks:['学习绑定OnClicked、OnHovered等UI事件','实现根据数值变化动态更新的进度条动效','学习变量绑定（Binding），让UI自动响应数据变化'],
+        weekendBonus:['做一个动态血条（受击时抖动+数字跳动）','整理动态UI绑定的使用场景列表']
+      },
+      { id:'w11', title:'Sequencer入门 · 演出级动画',
+        tasks:['了解Sequencer和WidgetAnimation的区别和使用场景','用Sequencer做一个简单的UI开场演出序列','理解为什么米哈游UI演出大量用Sequencer'],
+        weekendBonus:['做一个15秒的UI开场序列（带镜头感）','参考星穹铁道主界面分析其序列结构']
+      },
+      { id:'w12', title:'Spine安装 · 骨骼绑定基础',
+        tasks:['安装Spine，熟悉界面，理解骨骼/插槽/附件概念','用角色图做基础骨骼绑定（可用免费素材）','做待机动画：呼吸起伏+眨眼'],
+        weekendBonus:['给角色加头发飘动动画','研究米哈游角色弹窗的Spine动画节奏']
+      },
+      { id:'w13', title:'Spine动画进阶 · 网格变形',
+        tasks:['学习Mesh网格变形，做衣服飘动或头发摆动','学习Skin系统，理解换装逻辑','做一个角色弹出动效（从小到大+弹性曲线）'],
+        weekendBonus:['做一个包含5个动画状态的角色（待机/惊喜/开心/难过/离场）','对比Spine与逐帧手绘的表现效果差异']
+      },
+      { id:'w14', title:'Spine导出 · 打通Unity工作流',
+        tasks:['学习Spine导出设置（Atlas打包、JSON/Binary格式）','在Unity里导入Spine Runtime，角色动画正常播放','用脚本（或AI辅助）控制动画状态切换'],
+        weekendBonus:['做一个Unity里的角色弹窗完整交互原型','记录Spine在Unity里的性能注意事项']
+      },
+      { id:'w15', title:'Spine导入Unreal · UMG联动',
+        tasks:['安装Spine Unreal Runtime插件，导入角色动画','在UMG里嵌入Spine角色','实现弹窗出现时角色同步播放入场动画'],
+        weekendBonus:['做一个Unreal里的完整角色弹窗原型','录屏对比Unity版本和Unreal版本的实现差异']
+      },
+      { id:'w16', title:'综合Demo · 阶段交付',
+        tasks:['完成UMG+Spine组合弹窗Demo（角色出现+UI动效同步）','录屏整理，作为作品集重要素材','减重10斤阶段验收'],
+        weekendBonus:['打磨Demo细节，提升整体视觉质量','写第二份月度学习总结']
+      },
+    ]
+  },
+  { id:'p3', title:'AI工具介入 + 作品集项目一', months:'第5-6月', color:'#a78bfa',
+    weeks:[
+      { id:'w17', title:'AI工具入门 · Claude/Cursor辅助蓝图',
+        tasks:['用Claude生成UMG蓝图逻辑（淡入淡出、延时触发）','学会看懂AI生成的蓝图并能调整参数','用AI生成Unity Editor脚本：批量重命名动效资源'],
+        weekendBonus:['用AI写一个自动检查UI动效命名规范的脚本','总结AI辅助工作流的使用心得']
+      },
+      { id:'w18', title:'动效规范制定 · 项目一框架',
+        tasks:['制定日系风格动效规范：3条缓动曲线（标准/强调/弹性）','定义时长标准：微交互80-150ms，弹窗250-350ms，页面转场350-450ms','定义错帧规则：同组元素间隔20-30ms递进，制作规范视觉稿'],
+        weekendBonus:['把规范做成可复用的AE预设','研究5款日系游戏UI动效节奏，验证规范合理性']
+      },
+      { id:'w19', title:'项目一制作 · 弹窗+按钮组件',
+        tasks:['基于规范做弹窗入场/出场动效','做按钮3态动效（Normal→Hover→Click），确保符合规范时长','在UMG里落地，截图+录屏留档'],
+        weekendBonus:['做5种不同情境的弹窗（确认/警告/奖励/教程/设置）','整理组件动效文档（含贝塞尔数值）']
+      },
+      { id:'w20', title:'项目一制作 · 页面转场+Loading',
+        tasks:['做页面切换转场动效，体现日系仪式感（加入光效或粒子）','做Loading动效（旋转+光晕，符合日系二次元风格）','确保所有组件动效遵循第18周定义的规范'],
+        weekendBonus:['做3种不同情绪的Loading（普通/战斗/庆典）','录制完整的组件动效展示视频（无剪辑原版）']
+      },
+      { id:'w21', title:'项目一收尾 · 视频剪辑',
+        tasks:['录制项目展示视频（2分钟以内），结构：规范说明→组件→引擎落地','撰写案例说明文案，格式：问题→方案→规范→落地','发布到站酷/Artstation，开始积累曝光'],
+        weekendBonus:['优化视频配乐和剪辑节奏','在设计社群发布并收集反馈']
+      },
+      { id:'w22', title:'AI工具深化 · 效率工具制作',
+        tasks:['用AI辅助写解决工作痛点的工具（AE批量导出/Unity参数批量修改）','整理AI辅助工作流心得，这是作品集差异化亮点'],
+        weekendBonus:['把AI工具制作过程录屏，作为作品集亮点材料','测试工具在实际工作中的使用体验']
+      },
+      { id:'w23', title:'逐帧手绘启动 · 表情动画',
+        tasks:['每周2小时逐帧手绘练习（本周正式开始）','练习：角色3帧表情变化（开心→惊喜→害羞）','工具CSP或Procreate，不要纠结工具选择'],
+        weekendBonus:['完成第一个5帧循环手绘动画','研究日系动画片头的动效节奏']
+      },
+      { id:'w24', title:'阶段复盘 · 为项目二做准备',
+        tasks:['复盘项目一不足，收集反馈（发到设计社群征集意见）','研究叠纸游戏（恋与深空/闪耀暖暖）UI动效风格，做参考收集','规划项目二方向：写实美型风格，情感化节奏'],
+        weekendBonus:['深度拆解恋与深空主界面动效（写分析文章）','写第三份月度学习总结']
+      },
+    ]
+  },
+  { id:'p4', title:'ASE Shader + 作品集项目二', months:'第7-8月', color:'#f472b6',
+    weeks:[
+      { id:'w25', title:'ASE安装 · 节点基础',
+        tasks:['安装Amplify Shader Editor，熟悉节点编辑器界面','理解核心节点：UV、Time、Lerp、Multiply、Add','做第一个Shader：UV滚动动画（流光/水波效果）'],
+        weekendBonus:['做一个UI扫光Shader（从左到右的高光扫过）','整理ASE常用节点速查手册']
+      },
+      { id:'w26', title:'溶解 + 描边Shader',
+        tasks:['做溶解Shader（基于噪声贴图的Dissolve效果）','做发光描边Shader（Outline + Glow）','把两个Shader用在UI元素上查看效果'],
+        weekendBonus:['做一个可控参数的溶解消失动效（配合动画曲线）','研究游戏中Shader在UI上的10种典型用法']
+      },
+      { id:'w27', title:'Unreal材质节点 · 同步学习',
+        tasks:['把ASE节点逻辑迁移到Unreal材质编辑器','在UMG Image控件上实现溶解效果','建立ASE与Unreal节点对照表'],
+        weekendBonus:['在Unreal里重现第25-26周的所有Shader效果','录制Shader效果展示片段存档']
+      },
+      { id:'w28', title:'项目二启动 · 叠纸风格研究',
+        tasks:['深度拆解恋与深空和闪耀暖暖UI动效：节奏/材质质感/情感表达','确定项目二主题（建议：女性向游戏主界面动效系统）','制定写实美型风格动效规范（偏柔和克制，与项目一形成差异）'],
+        weekendBonus:['做项目二的情绪板（Moodboard）和色彩规范','设计项目二的静帧UI稿']
+      },
+      { id:'w29', title:'项目二制作 · 材质质感UI',
+        tasks:['做丝绸感/玻璃感UI背景材质（用ASE或Unreal材质节点）','做金属质感按钮的Hover光效','确保材质效果在引擎里落地，不只是AE预演'],
+        weekendBonus:['做5种不同材质质感的UI背景（丝绸/玻璃/金属/纸张/水晶）','与项目一的按钮动效对比，总结两种风格差异']
+      },
+      { id:'w30', title:'项目二制作 · 情感化动效节奏',
+        tasks:['做带情感表达的角色弹窗（Spine角色+表情变化+UI动效同步）','注意叠纸风格节奏：比米哈游慢20-30%，更克制细腻','整理与程序对接的参数文档（叠纸JD强调的能力）'],
+        weekendBonus:['做3个不同情感场景的弹窗（获得奖励/剧情对话/确认危险操作）','录制情感化动效展示视频']
+      },
+      { id:'w31', title:'项目二收尾 + Shader展示片段',
+        tasks:['完成项目二录屏和案例文案','单独录制2-3个Shader效果展示片段（30秒/个）','整理Shader代码和节点截图，说明实现思路'],
+        weekendBonus:['优化项目二视频配乐和节奏（体现叠纸的细腻感）','发布项目二到站酷并记录反馈']
+      },
+      { id:'w32', title:'阶段复盘 · 项目三规划',
+        tasks:['复盘两个项目，对照米哈游/叠纸JD评估差距','规划项目三主题：综合技术展示型（主界面动效系统）','制定减重最后冲刺计划'],
+        weekendBonus:['列出项目三的技术清单（UMG+Spine+Shader+Niagara）','写第四份月度学习总结']
+      },
+    ]
+  },
+  { id:'p5', title:'Blender基础 + 作品集项目三', months:'第9-10月', color:'#34d399',
+    weeks:[
+      { id:'w33', title:'Blender入门 · 界面与基础操作',
+        tasks:['熟悉Blender界面，掌握快捷键（G移动/R旋转/S缩放/Tab切换）','理解物体模式和编辑模式区别','导入现成3D模型（游戏资产或免费素材），不从零建模'],
+        weekendBonus:['导入3个不同类型的3D模型并整理场景','研究在UI动效中使用3D元素的典型案例']
+      },
+      { id:'w34', title:'Blender动画 · 关键帧与曲线',
+        tasks:['给3D物体做关键帧动画','用Graph Editor调整动画曲线（对应AE图表编辑器）','做一个简单的3D UI元素旋转+缩放动画'],
+        weekendBonus:['做一个3D UI卡片翻转动画（正面/背面切换）','整理Blender和AE在动画曲线编辑上的操作对比']
+      },
+      { id:'w35', title:'Blender导出 · 打通引擎工作流',
+        tasks:['学习从Blender导出FBX/GLTF格式','导入Unity和Unreal确保动画正常播放','在UMG里嵌入3D元素，和UI结合展示'],
+        weekendBonus:['做一个包含3D元素的UI动效Demo并录屏','测试不同导出设置对动画质量的影响']
+      },
+      { id:'w36', title:'Niagara粒子入门',
+        tasks:['安装Niagara，了解系统架构（System→Emitter→Particle）','对标Unity Particle System，找对应参数位置','做一个UI点击爆炸粒子效果（金色光点散射）'],
+        weekendBonus:['做3种UI粒子效果：点击爆炸/能量充能/金币飞散','研究原神技能UI的粒子实现思路']
+      },
+      { id:'w37', title:'项目三启动 · 主界面系统规划',
+        tasks:['确定主题：虚构游戏主界面动效完整系统','规划必须包含：UMG落地+Spine角色+自定义Shader+Niagara粒子','画出主界面的静态稿和动效分镜'],
+        weekendBonus:['完成主界面完整静帧设计稿','制定项目三的动效规范文档框架']
+      },
+      { id:'w38', title:'项目三制作 · 核心动效实现',
+        tasks:['实现主界面核心动效：角色登场+背景动态+菜单入场','加入Spine角色和自定义Shader背景材质','完成在UMG里的基础落地'],
+        weekendBonus:['录制核心动效的工程文件截图（展示技术实现）','邀请1-2个设计师朋友试玩并收集反馈']
+      },
+      { id:'w39', title:'项目三制作 · 粒子+交互细节打磨',
+        tasks:['加入Niagara粒子效果（按钮点击反馈、能量充能）','打磨交互细节：每个可点击元素都有清晰反馈','整理完整的动效规范文档（含所有组件参数说明）'],
+        weekendBonus:['做整个主界面的完整交互演示视频（无剪辑版）','整理项目三的技术文档草稿']
+      },
+      { id:'w40', title:'项目三收尾 · 三项目全部就位',
+        tasks:['完成项目三录屏、案例文案、规范文档','三个项目全部发布站酷/Artstation，确保对外分享','减重目标：本周冲刺达成20斤，完成全年健身目标'],
+        weekendBonus:['把三个项目整合成一个完整的作品集Demo Reel','写第五份月度学习总结（重点复盘技术成长）']
+      },
+    ]
+  },
+  { id:'p6', title:'打磨作品集 · 投递大厂', months:'第11-12月', color:'#fbbf24',
+    weeks:[
+      { id:'w41', title:'对标JD · 逐条检查作品集',
+        tasks:['打开米哈游和叠纸最新JD，逐条对照作品集','列出已覆盖/部分覆盖/未覆盖三类，针对性补强','研究两家最新上线游戏的UI动效风格，确认对得上'],
+        weekendBonus:['补做JD里缺失的1个技能展示','在脉脉搜索目标公司设计师，研究他们的作品风格']
+      },
+      { id:'w42', title:'视频展示优化 · 剪辑节奏打磨',
+        tasks:['重新剪辑三个项目展示视频，确保节奏紧凑重点突出','视频里加入关键技术点文字说明，不让面试官猜','做一个2-3分钟的作品集总集视频'],
+        weekendBonus:['请1-2位非设计师朋友看作品集视频，收集直觉反馈','优化视频封面和缩略图']
+      },
+      { id:'w43', title:'简历重写 · 量化描述',
+        tasks:['用量化语言重写项目描述：定义了XX动效规范，覆盖XX个组件，落地于XX引擎','技能栏按熟练度诚实填写，不虚报','加入"AI辅助工具开发"差异化亮点'],
+        weekendBonus:['让朋友模拟HR视角浏览简历，计时10秒内能记住几个点','准备中英文双版本简历（米哈游/叠纸都有国际化需求）']
+      },
+      { id:'w44', title:'内推渠道建立 · 脉脉/牛客联系',
+        tasks:['在脉脉/牛客找米哈游和叠纸在职员工，礼貌询问内推','准备3句话自我介绍（我是谁+做过什么+想做什么）','确认内推渠道至少2个'],
+        weekendBonus:['研究内推礼仪，写一份得体的内推请求模板','整理目标公司的面试题库（牛客上有）']
+      },
+      { id:'w45', title:'正式投递 · 米哈游+叠纸',
+        tasks:['通过内推渠道提交简历+作品集','同步投递同级别公司（网易/腾讯/完美世界）作为保底','投递后继续学习不要停下来等消息'],
+        weekendBonus:['研究目标公司的面试流程，制定时间预期','整理一份常见面试问题的回答草稿']
+      },
+      { id:'w46', title:'面试作品讲解练习',
+        tasks:['练习5分钟项目讲解，结构：背景→问题→方案→规范→落地→反思','重点练习"为什么这样设计"而不只是"做了什么"','对镜子或录视频练习，找到自然流畅的表达节奏'],
+        weekendBonus:['做一次完整的模拟面试（找朋友当面试官）','录制自己讲作品的视频并复盘']
+      },
+      { id:'w47', title:'面试技术问题准备',
+        tasks:['准备：Unity和UMG动效实现差异回答','准备：Spine在项目中如何使用','准备："你最难的动效项目是什么"的完整回答'],
+        weekendBonus:['整理一份常见技术面试题+参考答案文档','研究两家公司近期发布的技术博客或分享']
+      },
+      { id:'w48', title:'持续跟进 · 复盘一整年',
+        tasks:['跟进投递状态，有面试机会积极参加','复盘全年执行情况：完成了什么，落下了什么','无论结果如何，技能已实实在在提升了'],
+        weekendBonus:['写一篇年度总结文章（可发布到站酷）','规划下一年的进阶方向']
+      },
+    ]
+  }
+];
+
+const ALL_WEEKS = CURRICULUM.flatMap(p =>
+  p.weeks.map(w => ({ ...w, phaseId:p.id, phaseTitle:p.title, phaseColor:p.color }))
+);
+
+// 周末额外任务：每周从 weekendBonus 随机选2条（固定seed保证同一周结果一致）
+function getWeekendTasks(weekIndex) {
+  const w = ALL_WEEKS[weekIndex];
+  if (!w.weekendBonus || w.weekendBonus.length === 0) return [];
+  // 用weekIndex做seed，保证每周固定组合
+  const seed = weekIndex * 31 + 7;
+  const arr = [...w.weekendBonus];
+  // 简单伪随机shuffle
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = ((seed * (i+1) * 1103515245 + 12345) & 0x7fffffff) % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, 2);
+}
+
+// ══════════════════════════════════════════════════════════
+// 状态
+// ══════════════════════════════════════════════════════════
+let state = {
+  startDate: null,
+  records: {},
+  // records[date] = {
+  //   checkedIn: bool, isLeave: bool,
+  //   tasks: [bool,...], taskNotes: ['',...]
+  //   weekendTasks: [bool, bool], weekendNotes: ['','']
+  //   dailyNote: '', weekId: ''
+  // }
+};
+
+function saveState() {
+  const s = JSON.stringify(state);
+  try { window.storage && window.storage.set('dxpk-v2', s); } catch(e) {}
+  try { localStorage.setItem('dxpk-v2', s); } catch(e) {}
+}
+async function loadState() {
+  try {
+    const r = await window.storage.get('dxpk-v2');
+    if (r && r.value) { state = JSON.parse(r.value); return; }
+  } catch(e) {}
+  try {
+    const l = localStorage.getItem('dxpk-v2');
+    if (l) { state = JSON.parse(l); return; }
+  } catch(e) {}
+  state = { startDate: todayStr(), records: {} };
+}
+
+// ══════════════════════════════════════════════════════════
+// 日期工具
+// ══════════════════════════════════════════════════════════
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function dateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function parseDate(s) { const[y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function addDays(s,n) { const d=parseDate(s); d.setDate(d.getDate()+n); return dateStr(d); }
+function dayDiff(a,b) { return Math.round((parseDate(a)-parseDate(b))/86400000); }
+function weekStart(s) { const d=parseDate(s); const day=d.getDay()||7; d.setDate(d.getDate()-day+1); return dateStr(d); }
+function isWeekend(s) { const d=parseDate(s).getDay(); return d===0||d===6; }
+function monthKey(s) { return s.slice(0,7); }
+
+function getPlanWeekIndex(dateS) {
+  if (!state.startDate) return 0;
+  const diff = dayDiff(dateS, state.startDate);
+  return Math.min(Math.max(Math.floor(diff/7), 0), ALL_WEEKS.length-1);
+}
+
+// 本月请假次数
+function getLeaveUsed(monthK) {
+  return Object.keys(state.records).filter(d => d.startsWith(monthK) && state.records[d].isLeave).length;
+}
+function getLeaveRemain(monthK) { return Math.max(0, 3 - getLeaveUsed(monthK)); }
+
+// 连续打卡（请假不断连击）
+function calcStreak() {
+  const today = todayStr();
+  let streak = 0;
+  let d = today;
+  while (true) {
+    const rec = state.records[d];
+    if (rec && (rec.checkedIn || rec.isLeave)) { streak++; d = addDays(d,-1); }
+    else break;
+    if (dayDiff(today, d) > 400) break;
+  }
+  return streak;
+}
+function calcTotal() {
+  return Object.values(state.records).filter(r => r.checkedIn).length;
+}
+
+// ══════════════════════════════════════════════════════════
+// 获取或初始化今日记录
+// ══════════════════════════════════════════════════════════
+function getTodayRec(dateS) {
+  const wi = getPlanWeekIndex(dateS);
+  const week = ALL_WEEKS[wi];
+  const isWE = isWeekend(dateS);
+  const weTasks = isWE ? getWeekendTasks(wi) : [];
+  if (!state.records[dateS]) {
+    state.records[dateS] = {
+      checkedIn:false, isLeave:false,
+      tasks: new Array(week.tasks.length).fill(false),
+      taskNotes: new Array(week.tasks.length).fill(''),
+      weekendTasks: isWE ? [false,false] : [],
+      weekendNotes: isWE ? ['',''] : [],
+      dailyNote:'', weekId:week.id
+    };
+  }
+  const rec = state.records[dateS];
+  // 补齐
+  while(rec.tasks.length < week.tasks.length) rec.tasks.push(false);
+  while(rec.taskNotes.length < week.tasks.length) rec.taskNotes.push('');
+  if (isWE) {
+    while(rec.weekendTasks.length < 2) rec.weekendTasks.push(false);
+    while(rec.weekendNotes.length < 2) rec.weekendNotes.push('');
+  }
+  return { rec, week, wi, isWE, weTasks };
+}
+
+// ══════════════════════════════════════════════════════════
+// 日期导航状态
+// ══════════════════════════════════════════════════════════
+let viewDateOffset = 0; // 相对今天的天数偏移
+
+function getViewDate() { return addDays(todayStr(), viewDateOffset); }
+function shiftViewDate(n) { viewDateOffset += n; renderToday(); window.scrollTo(0,0); }
+function jumpToDate(dateS) {
+  viewDateOffset = dayDiff(dateS, todayStr());
+  // 切换到今日打卡页，但不重置offset
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-today').classList.add('active');
+  document.querySelector('.nav-btn').classList.add('active');
+  renderToday();
+  window.scrollTo(0,0);
+}
+function jumpToToday() { viewDateOffset = 0; renderToday(); }
+
+// ══════════════════════════════════════════════════════════
+// 今日打卡渲染（支持任意日期）
+// ══════════════════════════════════════════════════════════
+function renderToday() {
+  const today = todayStr();
+  const viewDate = getViewDate();
+  const isFutureView = viewDate > today;
+  const isPastView = viewDate < today;
+  const isTodayView = viewDate === today;
+
+  // 日期导航更新
+  const dp = parseDate(viewDate);
+  const wdNames = ['周日','周一','周二','周三','周四','周五','周六'];
+  document.getElementById('dateNavMain').textContent =
+    `${dp.getFullYear()}.${pad(dp.getMonth()+1)}.${pad(dp.getDate())}`;
+  document.getElementById('dateNavSub').textContent =
+    isTodayView ? `今天 · ${wdNames[dp.getDay()]}` :
+    isFutureView ? `${wdNames[dp.getDay()]} · 未来预览` :
+    `${wdNames[dp.getDay()]} · 过去记录`;
+
+  const todayBtn = document.getElementById('dateNavTodayBtn');
+  todayBtn.classList.toggle('hidden', isTodayView);
+
+  // 预览横幅
+  document.getElementById('previewBanner').style.display = isFutureView ? 'flex' : 'none';
+
+  // 未来日期不初始化record（只读展示课程内容）
+  const wi = getPlanWeekIndex(viewDate);
+  const week = ALL_WEEKS[wi];
+  const phase = CURRICULUM.find(p=>p.id===week.phaseId);
+  const isWE = isWeekend(viewDate);
+  const weTasks = isWE ? getWeekendTasks(wi) : [];
+
+  // 对于未来日期，rec用临时空对象
+  let rec, locked;
+  if (isFutureView) {
+    rec = {
+      checkedIn:false, isLeave:false,
+      tasks: new Array(week.tasks.length).fill(false),
+      taskNotes: new Array(week.tasks.length).fill(''),
+      weekendTasks: isWE ? [false,false] : [],
+      weekendNotes: isWE ? ['',''] : [],
+      dailyNote:''
+    };
+    locked = true;
+  } else {
+    const r = getTodayRec(viewDate);
+    rec = r.rec;
+    locked = rec.checkedIn || rec.isLeave;
+  }
+
+  document.getElementById('todayPhase').textContent = `${phase.months} · W${wi+1}`;
+  document.getElementById('todayWeekTitle').textContent = week.title;
+  document.getElementById('todaySub').textContent = phase.title;
+
+  // 进度
+  const allDone = [...rec.tasks, ...(isWE?rec.weekendTasks:[])];
+  const done = allDone.filter(Boolean).length;
+  const total = allDone.length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const circ = 207.35;
+  document.getElementById('progressCircle').style.strokeDashoffset = circ - (pct/100)*circ;
+  document.getElementById('progressPct').textContent = isFutureView ? '—' : pct+'%';
+
+  // 连击（只在今天视图显示）
+  const streakBar = document.querySelector('.streak-bar');
+  streakBar.style.display = isTodayView ? '' : 'none';
+
+  // 请假条（只在今天/过去视图显示）
+  const leaveBarEl = document.getElementById('leaveBar');
+  leaveBarEl.style.display = isFutureView ? 'none' : '';
+  if (!isFutureView) {
+    const mk = monthKey(viewDate);
+    const remain = getLeaveRemain(mk);
+    document.getElementById('leaveRemain').textContent = remain;
+    leaveBarEl.innerHTML = '<span class="leave-label">本月请假：</span>';
+    for (let i=0;i<3;i++) {
+      const dot = document.createElement('div');
+      dot.className = 'leave-dot ' + (i < 3-remain ? 'used' : 'avail');
+      dot.textContent = i < 3-remain ? '✗' : '○';
+      leaveBarEl.appendChild(dot);
+    }
+    const lbl2 = document.createElement('span');
+    lbl2.className = 'leave-label';
+    lbl2.textContent = `（剩余 ${remain} 次）`;
+    leaveBarEl.appendChild(lbl2);
+  }
+
+  // 任务列表
+  const listEl = document.getElementById('taskList');
+  listEl.innerHTML = '';
+
+  function makeTaskCard(taskText, idx, isWE_task, tasks_arr, notes_arr) {
+    const isDone = tasks_arr[idx];
+    const card = document.createElement('div');
+    card.className = 'task-card' + (isDone?' done':'');
+    const noteKey = `note-open-${viewDate}-${isWE_task?'we':'t'}-${idx}`;
+    const noteOpen = sessionStorage.getItem(noteKey) === '1';
+    card.innerHTML = `
+      <div class="task-header">
+        <div class="task-cb">${isDone?'✓':''}</div>
+        <div class="task-main-text">${taskText}</div>
+        ${isWE_task?'<div class="weekend-tag">周末</div>':''}
+        ${!isFutureView?`<div class="task-note-toggle">${notes_arr[idx]?'📝 查看备注':'+ 备注'}</div>`:''}
+      </div>
+      ${!isFutureView?`<div class="task-note-area${noteOpen?' open':''}">
+        <textarea class="task-note-input" placeholder="为这条任务写备注..." ${locked?'disabled':''}>${notes_arr[idx]||''}</textarea>
+        <div class="task-note-saved">${notes_arr[idx]?'已保存备注':'暂无备注'}</div>
+      </div>`:''}
+    `;
+    const header = card.querySelector('.task-header');
+    const noteToggle = card.querySelector('.task-note-toggle');
+    const noteArea = card.querySelector('.task-note-area');
+    const noteInput = card.querySelector('.task-note-input');
+    const noteSaved = card.querySelector('.task-note-saved');
+
+    if (!locked && !isFutureView) {
+      header.addEventListener('click', (e) => {
+        if (noteToggle && e.target === noteToggle) return;
+        tasks_arr[idx] = !tasks_arr[idx];
+        saveState();
+        renderToday();
+      });
+    }
+    if (noteToggle && noteArea) {
+      noteToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = noteArea.classList.toggle('open');
+        sessionStorage.setItem(noteKey, open?'1':'0');
+      });
+    }
+    if (!locked && !isFutureView && noteInput) {
+      let saveTimer;
+      noteInput.addEventListener('input', () => {
+        notes_arr[idx] = noteInput.value;
+        saveState();
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          if(noteSaved) noteSaved.textContent = notes_arr[idx] ? '✓ 已自动保存' : '暂无备注';
+          if(noteToggle) noteToggle.textContent = notes_arr[idx] ? '📝 查看备注' : '+ 备注';
+        }, 600);
+      });
+    }
+    return card;
+  }
+
+  const wdLabel = document.createElement('div');
+  wdLabel.className = 'task-section-label';
+  wdLabel.textContent = isFutureView ? '本周任务（预览）' : '本周任务';
+  listEl.appendChild(wdLabel);
+  week.tasks.forEach((task, i) => {
+    listEl.appendChild(makeTaskCard(task, i, false, rec.tasks, rec.taskNotes));
+  });
+  if (isWE && weTasks.length > 0) {
+    const weLabel = document.createElement('div');
+    weLabel.className = 'task-section-label';
+    weLabel.textContent = isFutureView ? '周末专项（预览）' : '周末专项';
+    listEl.appendChild(weLabel);
+    weTasks.forEach((task, i) => {
+      listEl.appendChild(makeTaskCard(task, i, true, rec.weekendTasks, rec.weekendNotes));
+    });
+  }
+
+  // 今日备注
+  const dailyInput = document.getElementById('dailyNoteInput');
+  dailyInput.value = rec.dailyNote || '';
+  dailyInput.disabled = locked;
+  dailyInput.placeholder = isFutureView ? '未来日期不可编辑' : '今天整体感受、遇到的问题、突破的难点...';
+  if (!isFutureView) {
+    dailyInput.oninput = () => { rec.dailyNote = dailyInput.value; saveState(); };
+  }
+
+  // 打卡/请假按钮
+  const btn = document.getElementById('checkinBtn');
+  const leaveBtn = document.getElementById('leaveBtn');
+
+  if (isFutureView) {
+    btn.textContent = '未来日期不可打卡';
+    btn.className = 'checkin-btn';
+    btn.style.cssText = 'opacity:.35;cursor:not-allowed;';
+    btn.disabled = true;
+    leaveBtn.style.display = 'none';
+  } else if (rec.isLeave) {
+    btn.textContent = '🏖 已请假';
+    btn.className = 'checkin-btn';
+    btn.style.cssText = 'background:var(--red-dim);color:var(--red);border:1px solid rgba(224,108,117,.3);';
+    btn.disabled = true;
+    leaveBtn.style.display = 'none';
+  } else if (rec.checkedIn) {
+    btn.textContent = '✓ 已打卡完成';
+    btn.className = 'checkin-btn done-btn';
+    btn.style.cssText = '';
+    btn.disabled = true;
+    leaveBtn.style.display = 'none';
+  } else if (isPastView) {
+    // 过去未打卡：允许补打卡
+    btn.textContent = '补打卡（过去日期）';
+    btn.className = 'checkin-btn';
+    btn.style.cssText = 'background:var(--surface2);color:var(--text2);border:1px solid var(--border2);';
+    btn.disabled = false;
+    leaveBtn.style.display = 'none';
+  } else {
+    // 今天未打卡
+    btn.textContent = '完成今日打卡';
+    btn.className = 'checkin-btn';
+    btn.style.cssText = '';
+    btn.disabled = false;
+    const mk = monthKey(viewDate);
+    const remain = getLeaveRemain(mk);
+    leaveBtn.style.display = '';
+    leaveBtn.disabled = remain <= 0;
+    document.getElementById('leaveRemain').textContent = remain;
+  }
+
+  if (isTodayView) renderStreak();
+}
+
+function renderStreak() {
+  document.getElementById('streakNum').textContent = calcStreak();
+  document.getElementById('totalDays').textContent = calcTotal();
+  const today = todayStr();
+  const rec = state.records[today];
+  let sub = '今天还没打卡';
+  if (rec && rec.isLeave) sub = '今日请假 🏖';
+  else if (rec && rec.checkedIn) sub = '今天已完成 🎉';
+  else { const s = calcStreak(); if (s > 0) sub = `继续保持，加油！`; }
+  document.getElementById('streakSub').textContent = sub;
+}
+
+function doCheckin() {
+  const viewDate = getViewDate();
+  const { rec, week } = getTodayRec(viewDate);
+  rec.checkedIn = true;
+  rec.weekId = week.id;
+  saveState();
+  renderToday();
+  const isToday = viewDate === todayStr();
+  showToast(isToday ? '✓ 今日打卡完成！坚持就是胜利 🔥' : '✓ 补打卡成功');
+}
+
+function openLeaveModal() {
+  const viewDate = getViewDate();
+  if (getLeaveRemain(monthKey(viewDate)) <= 0) { showToast('本月请假次数已用完'); return; }
+  document.getElementById('leaveModal').classList.add('open');
+}
+function closeLeaveModal() { document.getElementById('leaveModal').classList.remove('open'); }
+function doLeave() {
+  const viewDate = getViewDate();
+  const { rec, week } = getTodayRec(viewDate);
+  rec.isLeave = true;
+  rec.weekId = week.id;
+  saveState();
+  closeLeaveModal();
+  renderToday();
+  showToast('🏖 已记录请假，连续打卡不中断');
+}
+
+// ══════════════════════════════════════════════════════════
+// 周报
+// ══════════════════════════════════════════════════════════
+let weekOffset = 0;
+function changeWeek(d) { weekOffset+=d; renderWeekly(); }
+
+function renderWeekly() {
+  const today = todayStr();
+  const baseMonday = weekStart(today);
+  const monday = addDays(baseMonday, weekOffset*7);
+  const days = Array.from({length:7},(_,i)=>addDays(monday,i));
+  const fmt = d => { const p=parseDate(d); return `${p.getMonth()+1}/${p.getDate()}`; };
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+
+  document.getElementById('weekLabel').textContent =
+    weekOffset===0 ? '本周' : `${fmt(days[0])} — ${fmt(days[6])}`;
+
+  let checkin=0, leave=0, taskDone=0, taskTotal=0;
+  days.forEach(d => {
+    const rec = state.records[d];
+    if (!rec) return;
+    if (rec.checkedIn) checkin++;
+    if (rec.isLeave) leave++;
+    const wi = getPlanWeekIndex(d);
+    const week = ALL_WEEKS[wi];
+    const isWE = isWeekend(d);
+    const weTasks = isWE ? getWeekendTasks(wi) : [];
+    taskDone += rec.tasks.filter(Boolean).length + (isWE ? rec.weekendTasks.filter(Boolean).length : 0);
+    taskTotal += week.tasks.length + (isWE ? weTasks.length : 0);
+  });
+  const rate = taskTotal ? Math.round(taskDone/taskTotal*100) : 0;
+
+  document.getElementById('weekStats').innerHTML = `
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${checkin}</div><div class="stat-lbl">打卡天数</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--accent)">${rate}%</div><div class="stat-lbl">任务完成率</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${leave}</div><div class="stat-lbl">请假天数</div></div>
+  `;
+
+  // 热力
+  const hm = document.getElementById('weekHm');
+  hm.innerHTML = '';
+  days.forEach((d,i) => {
+    const rec = state.records[d];
+    const isFuture = d > today;
+    const wi = getPlanWeekIndex(d);
+    const week = ALL_WEEKS[wi];
+    const isWE = isWeekend(d);
+    const weTasks = isWE ? getWeekendTasks(wi) : [];
+    const done = rec ? (rec.tasks.filter(Boolean).length + (isWE?rec.weekendTasks.filter(Boolean).length:0)) : 0;
+    const total = week.tasks.length + (isWE?weTasks.length:0);
+    const pct = total ? Math.round(done/total*100) : 0;
+    const cell = document.createElement('div');
+    cell.className = 'whm-cell' + (d===today?' today':'') + (rec&&rec.isLeave?' has-leave':rec&&rec.checkedIn?' has-done':'');
+    cell.style.cursor = 'pointer';
+    cell.title = '点击查看当日任务';
+    cell.innerHTML = `
+      <div class="wday">${dayNames[i]}</div>
+      <div class="wdate" style="color:${rec&&rec.checkedIn?'var(--green)':rec&&rec.isLeave?'var(--red)':'var(--text3)'}">${fmt(d)}</div>
+      <div class="wpct">${isFuture?'预览':rec?(rec.isLeave?'请假':pct+'%'):'未打卡'}</div>
+    `;
+    cell.addEventListener('click', () => jumpToDate(d));
+    hm.appendChild(cell);
+  });
+
+  // 日志
+  const log = document.getElementById('weekLog');
+  log.innerHTML = '';
+  const withRec = days.filter(d=>state.records[d]&&(state.records[d].checkedIn||state.records[d].isLeave)).reverse();
+  if (!withRec.length) {
+    log.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px">本周暂无打卡记录</div>';
+    return;
+  }
+  withRec.forEach(d => {
+    const rec = state.records[d];
+    const wi = getPlanWeekIndex(d);
+    const week = ALL_WEEKS[wi];
+    const isWE = isWeekend(d);
+    const weTasks = isWE ? getWeekendTasks(wi) : [];
+    const done = rec.tasks.filter(Boolean).length + (isWE?rec.weekendTasks.filter(Boolean).length:0);
+    const total = week.tasks.length + (isWE?weTasks.length:0);
+    const pct = total ? Math.round(done/total*100) : 0;
+    const dp = parseDate(d);
+
+    // 收集所有有备注的任务
+    const notedTasks = [];
+    week.tasks.forEach((t,i) => { if (rec.taskNotes[i]) notedTasks.push({task:t, note:rec.taskNotes[i]}); });
+    if (isWE) weTasks.forEach((t,i) => { if (rec.weekendNotes[i]) notedTasks.push({task:'[周末]'+t, note:rec.weekendNotes[i]}); });
+
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    const hasDetail = notedTasks.length > 0 || rec.dailyNote;
+    row.innerHTML = `
+      <div class="log-row-header" ${hasDetail?'onclick="this.parentElement.classList.toggle(\'open\')"':''}>
+        <div class="log-row-date">${dp.getMonth()+1}/${dp.getDate()}</div>
+        <div class="log-row-title">
+          ${rec.isLeave?'<span style="color:var(--red)">🏖 请假</span>':'<span style="color:var(--green)">✓</span>'} 
+          <strong>${week.title}</strong>
+          <span style="color:var(--text3);font-size:11px;margin-left:6px">${rec.isLeave?'':done+'/'+total+' 项完成'}</span>
+        </div>
+        <div class="log-row-pct" style="color:${pct>=80?'var(--green)':pct>=50?'var(--accent)':'var(--text3)'}">${rec.isLeave?'':pct+'%'}</div>
+        ${hasDetail?'<div style="color:var(--text3);font-size:11px;margin-left:6px">▼</div>':''}
+      </div>
+      <div class="log-row-body">
+        ${notedTasks.map(n=>`
+          <div class="log-note-block">
+            <div class="ntask">📝 ${n.task}</div>
+            <div class="nnote">${n.note}</div>
+          </div>
+        `).join('')}
+        ${rec.dailyNote?`
+          <div class="log-daily-note">
+            <div class="nlbl">TODAY'S NOTE</div>
+            <div class="ntext">${rec.dailyNote}</div>
+          </div>
+        `:''}
+      </div>
+    `;
+    log.appendChild(row);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// 月报
+// ══════════════════════════════════════════════════════════
+let monthOffset = 0;
+function changeMonth(d) { monthOffset+=d; renderMonthly(); }
+
+function renderMonthly() {
+  const today = todayStr();
+  const now = parseDate(today);
+  const tgt = new Date(now.getFullYear(), now.getMonth()+monthOffset, 1);
+  const year = tgt.getFullYear(), month = tgt.getMonth();
+  const mk = `${year}-${pad(month+1)}`;
+
+  document.getElementById('monthLabel').textContent =
+    monthOffset===0 ? '本月' : `${year}年${month+1}月`;
+
+  const dim = new Date(year,month+1,0).getDate();
+  let checkin=0, leave=0, taskDone=0, taskTotal=0, noteDays=0;
+
+  for (let d=1;d<=dim;d++) {
+    const ds = `${year}-${pad(month+1)}-${pad(d)}`;
+    const rec = state.records[ds];
+    if (!rec) continue;
+    if (rec.checkedIn) checkin++;
+    if (rec.isLeave) leave++;
+    if (rec.dailyNote || rec.taskNotes.some(n=>n)) noteDays++;
+    const wi = getPlanWeekIndex(ds);
+    const week = ALL_WEEKS[wi];
+    const isWE = isWeekend(ds);
+    const weTasks = isWE ? getWeekendTasks(wi) : [];
+    taskDone += rec.tasks.filter(Boolean).length + (isWE?rec.weekendTasks.filter(Boolean).length:0);
+    taskTotal += week.tasks.length + (isWE?weTasks.length:0);
+  }
+  const rate = taskTotal ? Math.round(taskDone/taskTotal*100) : 0;
+  const leaveUsed = 3 - getLeaveRemain(mk);
+
+  document.getElementById('monthStats').innerHTML = `
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${checkin}</div><div class="stat-lbl">打卡天数</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--accent)">${rate}%</div><div class="stat-lbl">任务完成率</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${leaveUsed}/3</div><div class="stat-lbl">请假使用</div></div>
+  `;
+
+  // 月历
+  const cal = document.getElementById('monthCal');
+  cal.innerHTML = '';
+  const firstDay = new Date(year,month,1).getDay();
+  for (let i=0;i<firstDay;i++) {
+    const el=document.createElement('div'); el.className='cal-cell empty'; cal.appendChild(el);
+  }
+  for (let d=1;d<=dim;d++) {
+    const ds = `${year}-${pad(month+1)}-${pad(d)}`;
+    const rec = state.records[ds];
+    const isToday = ds===today;
+    const isFuture = ds>today;
+    const wi = getPlanWeekIndex(ds);
+    const week = ALL_WEEKS[wi];
+    const isWE = isWeekend(ds);
+    const weTasks = isWE?getWeekendTasks(wi):[];
+    const done = rec?(rec.tasks.filter(Boolean).length+(isWE?rec.weekendTasks.filter(Boolean).length:0)):0;
+    const total = week.tasks.length+(isWE?weTasks.length:0);
+    const pct = total?done/total:0;
+    let cls = 'cal-cell';
+    if (rec&&rec.isLeave) cls+=' is-leave';
+    else if (!isFuture&&rec) { cls += pct>=0.8?' done-full':pct>=0.4?' done-half':' done-low'; }
+    if (isToday) cls+=' today';
+    if (isFuture) cls+=' future';
+    const el = document.createElement('div');
+    el.className = cls;
+    el.style.cursor = 'pointer';
+    el.title = `${d}日 · 点击查看任务`;
+    el.innerHTML = `<span>${d}</span>${rec&&!rec.isLeave&&rec.checkedIn?'<div class="cal-dot"></div>':''}${rec&&rec.isLeave?'<span style="font-size:9px">假</span>':''}`;
+    el.addEventListener('click', () => jumpToDate(ds));
+    cal.appendChild(el);
+  }
+
+  // 评级
+  const consistency = dim>0?Math.round((checkin+leave)/dim*100):0;
+  const grade = consistency>=90?'S':consistency>=70?'A':consistency>=50?'B':consistency>=30?'C':'D';
+  const gc = {S:'#fbbf24',A:'#34d399',B:'#38bdf8',C:'#a78bfa',D:'#e06c75'}[grade];
+  const gmsg = {S:'完美执行，真正的修炼者 🏆',A:'优秀表现，保持节奏 💪',B:'良好完成，还有提升空间 📈',C:'需要加强，找回状态 🔥',D:'重新出发，明天是新的开始 🌱'}[grade];
+  document.getElementById('monthGrade').innerHTML = `
+    <div class="grade-card">
+      <div class="grade-letter" style="color:${gc}">${grade}</div>
+      <div class="grade-info">
+        <div class="gi-main">本月共 <strong>${dim}</strong> 天，打卡 <strong style="color:var(--green)">${checkin}</strong> 天，请假 <strong style="color:var(--red)">${leave}</strong> 天，坚持率 <strong style="color:var(--accent)">${consistency}%</strong></div>
+        <div class="gi-sub">${gmsg}</div>
+      </div>
+    </div>
+  `;
+
+  // 备注汇总
+  const notesEl = document.getElementById('monthNotes');
+  const noteRows = [];
+  for (let d=1;d<=dim;d++) {
+    const ds = `${year}-${pad(month+1)}-${pad(d)}`;
+    const rec = state.records[ds];
+    if (!rec) continue;
+    const wi = getPlanWeekIndex(ds);
+    const week = ALL_WEEKS[wi];
+    const isWE = isWeekend(ds);
+    const weTasks = isWE?getWeekendTasks(wi):[];
+    const notedTasks = [];
+    week.tasks.forEach((t,i)=>{ if(rec.taskNotes[i]) notedTasks.push({task:t,note:rec.taskNotes[i]}); });
+    if(isWE) weTasks.forEach((t,i)=>{ if(rec.weekendNotes[i]) notedTasks.push({task:'[周末]'+t,note:rec.weekendNotes[i]}); });
+    if (notedTasks.length || rec.dailyNote) {
+      noteRows.push({ ds, rec, week, notedTasks });
+    }
+  }
+  if (!noteRows.length) {
+    notesEl.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:24px">本月暂无任务备注</div>';
+    return;
+  }
+  notesEl.innerHTML = '<div class="notes-summary">' + noteRows.map(({ds,rec,week,notedTasks}) => {
+    const dp = parseDate(ds);
+    const preview = notedTasks[0]?.note || rec.dailyNote || '';
+    return `
+      <div class="note-summary-row nsrow-row">
+        <div class="nsrow-header" onclick="this.parentElement.classList.toggle('open')">
+          <div class="nsrow-date">${dp.getMonth()+1}/${dp.getDate()}</div>
+          <div class="nsrow-preview">${week.title} · ${preview.slice(0,30)}${preview.length>30?'...':''}</div>
+          <div style="color:var(--text3);font-size:11px;margin-left:6px">▼</div>
+        </div>
+        <div class="nsrow-body">
+          ${notedTasks.map(n=>`
+            <div class="log-note-block" style="margin-bottom:6px">
+              <div class="ntask">📝 ${n.task}</div>
+              <div class="nnote">${n.note}</div>
+            </div>
+          `).join('')}
+          ${rec.dailyNote?`
+            <div class="log-daily-note">
+              <div class="nlbl">TODAY'S NOTE</div>
+              <div class="ntext">${rec.dailyNote}</div>
+            </div>
+          `:''}
+        </div>
+      </div>
+    `;
+  }).join('') + '</div>';
+}
+
+// ══════════════════════════════════════════════════════════
+// 课程进度
+// ══════════════════════════════════════════════════════════
+function renderCurriculum() {
+  const today = todayStr();
+  const currentWi = getPlanWeekIndex(today);
+  const list = document.getElementById('curriculumList');
+  list.innerHTML = '';
+  let globalWi = 0;
+  CURRICULUM.forEach(phase => {
+    const phaseStart = globalWi;
+    const weeksDone = phase.weeks.filter((_,wi) => {
+      const idx = phaseStart+wi;
+      const wm = addDays(state.startDate||today, idx*7);
+      const we = addDays(wm,6);
+      return Object.keys(state.records).some(d=>d>=wm&&d<=we&&state.records[d].checkedIn);
+    }).length;
+    const pct = Math.round(weeksDone/phase.weeks.length*100);
+    const isCurrPhase = currentWi>=phaseStart && currentWi<phaseStart+phase.weeks.length;
+
+    const el = document.createElement('div');
+    el.className = 'curr-phase' + (isCurrPhase?' open':'');
+    el.innerHTML = `
+      <div class="curr-phase-hdr" onclick="this.parentElement.classList.toggle('open')">
+        <div class="curr-phase-dot" style="background:${phase.color}"></div>
+        <div class="curr-phase-title">${phase.title}</div>
+        <div class="curr-phase-pct" style="color:${phase.color}">${pct}%</div>
+        <div style="color:var(--text3);font-size:11px;margin-left:6px">▼</div>
+      </div>
+      <div class="curr-bar"><div class="curr-bar-fill" style="width:${pct}%;background:${phase.color}"></div></div>
+      <div class="curr-weeks">
+        ${phase.weeks.map((w,wi) => {
+          const idx = phaseStart+wi;
+          const isCurr = idx===currentWi;
+          const isPast = idx<currentWi;
+          const wm = addDays(state.startDate||today, idx*7);
+          const we = addDays(wm,6);
+          const hasCk = Object.keys(state.records).some(d=>d>=wm&&d<=we&&state.records[d].checkedIn);
+          const icon = isCurr?`<span style="color:${phase.color}">▶</span>`:isPast?(hasCk?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--text3)">○</span>'):'<span style="color:var(--text3)">·</span>';
+          return `<div class="curr-wrow" style="${isCurr?'background:var(--surface2);margin:0 -4px;padding:7px 4px;border-radius:6px;':''}">
+            <div class="curr-wnum" style="color:${isCurr?phase.color:'var(--text3)'}">W${idx+1}</div>
+            <div style="flex:1;color:${isCurr?'var(--text)':isPast?'var(--text3)':'var(--text2)'}">${w.title}</div>
+            <div>${icon}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+    list.appendChild(el);
+    globalWi += phase.weeks.length;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// 导航 & 工具
+// ══════════════════════════════════════════════════════════
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  // 点nav的"今日打卡"时重置到今天
+  if(id==='today' && btn) viewDateOffset = 0;
+  window.scrollTo(0,0);
+  if(id==='today') renderToday();
+  else if(id==='weekly') renderWeekly();
+  else if(id==='monthly') renderMonthly();
+  else if(id==='curriculum') renderCurriculum();
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ══════════════════════════════════════════════════════════
+// 初始化
+// ══════════════════════════════════════════════════════════
+async function init() {
+  const now = new Date();
+  const wds = ['日','一','二','三','四','五','六'];
+  document.getElementById('headerDate').textContent =
+    `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} 周${wds[now.getDay()]}`;
+  await loadState();
+  if (!state.startDate) { state.startDate=todayStr(); saveState(); }
+  renderToday();
+}
+init();
+</script>
+</body>
+</html>
